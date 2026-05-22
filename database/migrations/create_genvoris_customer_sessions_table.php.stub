@@ -1,0 +1,58 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Optional table: genvoris_customer_sessions
+ *
+ * Stores the mapping between your application's users and their Genvoris
+ * platform customer ID. Running this migration enables:
+ *   - Cached customer IDs (avoids repeated upsert calls)
+ *   - HasGenvorisAccess::genvorisCustomerId()
+ *   - HasGenvorisAccess::genvorisUsage() and canTryOn()
+ *
+ * The table is NOT required — all HasGenvorisAccess methods fall back to
+ * direct API calls when the table does not exist.
+ *
+ * Publish and run:
+ *   php artisan vendor:publish --tag=genvoris-migrations
+ *   php artisan migrate
+ */
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('genvoris_customer_sessions', function (Blueprint $table) {
+            $table->id();
+
+            // Polymorphic relationship to the local user (supports multiple user types)
+            $table->string('user_type');
+            $table->unsignedBigInteger('user_id');
+
+            // Genvoris platform identifiers
+            $table->string('genvoris_customer_id');
+            $table->string('external_id');
+            $table->string('plan_id')->nullable();
+            $table->string('status')->default('active');
+
+            // Cached session token (optional — short-lived; store only if caching is disabled)
+            $table->text('session_token')->nullable();
+            $table->timestamp('session_expires_at')->nullable();
+
+            // Housekeeping
+            $table->timestamp('last_synced_at')->nullable();
+            $table->timestamps();
+
+            // Constraints
+            $table->unique(['user_type', 'user_id'], 'genvoris_user_unique');
+            $table->index('genvoris_customer_id');
+            $table->index('external_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('genvoris_customer_sessions');
+    }
+};

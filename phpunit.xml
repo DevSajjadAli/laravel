@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         testdox="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+
+    <php>
+        <env name="GENVORIS_API_KEY"        value="gvk_test_placeholder"/>
+        <env name="GENVORIS_WEBHOOK_SECRET" value="test_webhook_secret_placeholder"/>
+        <env name="APP_ENV"                 value="testing"/>
+        <env name="APP_URL"                 value="http://localhost"/>
+    </php>
+</phpunit>
