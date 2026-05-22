@@ -1,9 +1,9 @@
 # Genvoris Laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/genvoris/laravel.svg)](https://packagist.org/packages/genvoris/laravel)
-[![Tests](https://github.com/genvoris/laravel/actions/workflows/tests.yml/badge.svg)](https://github.com/genvoris/laravel/actions/workflows/tests.yml)
+[![Tests](https://github.com/DevSajjadAli/laravel/actions/workflows/tests.yml/badge.svg)](https://github.com/DevSajjadAli/laravel/actions/workflows/tests.yml)
 [![PHP Version Require](https://img.shields.io/packagist/php-v/genvoris/laravel.svg)](https://packagist.org/packages/genvoris/laravel)
-[![License](https://img.shields.io/github/license/genvoris/laravel.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/DevSajjadAli/laravel.svg)](LICENSE)
 
 Official Laravel integration for the [Genvoris Virtual Try-On](https://genvoris.org) platform.
 
