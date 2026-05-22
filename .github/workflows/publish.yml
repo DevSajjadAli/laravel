@@ -9,12 +9,16 @@ jobs:
   publish:
     name: Publish ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Ping Packagist
         # Notify Packagist so it re-crawls the package immediately
+        # Requires PACKAGIST_USERNAME and PACKAGIST_TOKEN secrets in repo settings
+        continue-on-error: true
         run: |
           curl -s -X POST \
             -H "Content-Type: application/json" \

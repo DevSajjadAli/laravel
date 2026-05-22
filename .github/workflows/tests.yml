@@ -50,7 +50,7 @@ jobs:
         run: |
           composer require \
             "laravel/framework:^${{ matrix.laravel }}.0" \
-            "orchestra/testbench:^$((matrix.laravel + 7))" \
+            "orchestra/testbench:^$(( ${{ matrix.laravel }} - 2 ))" \
             --no-interaction --no-update
           composer update --prefer-dist --no-interaction
 
