@@ -22,6 +22,14 @@ class GenvorisServiceProvider extends ServiceProvider
         $this->app->singleton(Client::class, function ($app) {
             $config = $app['config']['genvoris'];
 
+            // SEC LARAVEL-07: fail fast with a *useful* error instead of
+            // letting an unconfigured client ship empty Bearer tokens to
+            // the Genvoris API (and get back opaque 401s). Validation runs
+            // at *resolution* time, not register/boot, so `vendor:publish`
+            // and `genvoris:install` still work on a fresh install before
+            // the user has set GENVORIS_API_KEY.
+            $this->assertConfig($config);
+
             return new Client(
                 apiKey: $config['api_key'],
                 baseUrl: rtrim($config['api_base_url'], '/'),
@@ -87,6 +95,50 @@ class GenvorisServiceProvider extends ServiceProvider
             Route::middleware(config('genvoris.proxy.middleware', []))
                 ->prefix(config('genvoris.proxy.path', 'genvoris-proxy'))
                 ->group(__DIR__.'/../routes/proxy.php');
+        }
+    }
+
+    /**
+     * Validate the resolved genvoris config. Throws a descriptive
+     * RuntimeException when required values are missing or malformed so
+     * the developer sees the real problem in their logs instead of an
+     * HTTP 401 from Genvoris.
+     *
+     * @param  array<string, mixed>  $config
+     *
+     * @throws \RuntimeException
+     */
+    protected function assertConfig(array $config): void
+    {
+        if (empty($config['api_key']) || ! is_string($config['api_key'])) {
+            throw new \RuntimeException(
+                'Genvoris API key not configured. Set GENVORIS_API_KEY in your .env file '
+                .'or publish + edit config/genvoris.php.'
+            );
+        }
+
+        if (empty($config['api_base_url']) || ! is_string($config['api_base_url'])
+            || ! preg_match('#^https?://#i', $config['api_base_url'])) {
+            throw new \RuntimeException(
+                'Genvoris api_base_url must be an absolute http(s) URL. '
+                .'Got: '.var_export($config['api_base_url'] ?? null, true)
+            );
+        }
+
+        if (! isset($config['timeout']) || ! is_int($config['timeout']) || $config['timeout'] <= 0) {
+            throw new \RuntimeException(
+                'Genvoris timeout must be a positive integer (seconds). '
+                .'Got: '.var_export($config['timeout'] ?? null, true)
+            );
+        }
+
+        $retry = $config['retry'] ?? null;
+        if (! is_array($retry)
+            || ! isset($retry['times']) || ! is_int($retry['times']) || $retry['times'] < 0
+            || ! isset($retry['sleep']) || ! is_array($retry['sleep'])) {
+            throw new \RuntimeException(
+                'Genvoris retry config must be ["times" => int >= 0, "sleep" => array<int>].'
+            );
         }
     }
 }
