@@ -99,8 +99,12 @@ class GenvorisServiceProvider extends ServiceProvider
             $router->aliasMiddleware('genvoris.webhook', VerifyGenvorisWebhook::class);
         }
 
-        // Register event listeners from config
-        foreach (config('genvoris.webhook.listeners', []) as $eventType => $listenerClass) {
+        // Register event listeners from config. `config()` is typed as
+        // mixed and returns null when the key is missing, so cast to array
+        // for both the iterable contract and static analyzers (Intelephense
+        // flagged null|iterable here).
+        $listeners = (array) config('genvoris.webhook.listeners', []);
+        foreach ($listeners as $eventType => $listenerClass) {
             Event::listen($eventType, $listenerClass);
         }
 
