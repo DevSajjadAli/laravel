@@ -9,6 +9,8 @@ use Genvoris\Laravel\Console\ListPlansCommand;
 use Genvoris\Laravel\Console\TestConnectionCommand;
 use Genvoris\Laravel\Console\WebhookTestCommand;
 use Genvoris\Laravel\Http\Client;
+use Genvoris\Laravel\Http\Middleware\VerifyGenvorisWebhook;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -77,6 +79,25 @@ class GenvorisServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'genvoris');
 
         GenvorisBladeDirectives::register();
+
+        // Phase 5: register a short middleware alias so consumer apps can
+        // reference VerifyGenvorisWebhook as 'genvoris.webhook' in their
+        // own route definitions (instead of importing and writing the
+        // class FQN). The package's own auto-registered webhook route
+        // doesn't need this -- it already uses the FQN via config -- but
+        // userland routes that want to defend custom webhook endpoints
+        // with the same HMAC check now have a clean idiom:
+        //
+        //   Route::post('/my-webhook', ...)->middleware('genvoris.webhook');
+        //
+        // Aliasing requires the HTTP kernel's router, which isn't
+        // available in console-only runs (e.g. `php artisan package:discover`)
+        // before the kernel boots -- guard with method_exists so install
+        // doesn't blow up on fresh consumers.
+        $router = $this->app->make(Router::class);
+        if (method_exists($router, 'aliasMiddleware')) {
+            $router->aliasMiddleware('genvoris.webhook', VerifyGenvorisWebhook::class);
+        }
 
         // Register event listeners from config
         foreach (config('genvoris.webhook.listeners', []) as $eventType => $listenerClass) {
