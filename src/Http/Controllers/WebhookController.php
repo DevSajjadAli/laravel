@@ -15,6 +15,7 @@ use Genvoris\Laravel\Webhooks\Events\PlanUpdated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 
 class WebhookController extends Controller
@@ -41,6 +42,23 @@ class WebhookController extends Controller
         $payload = $request->json()->all();
         $type = $payload['type'] ?? 'unknown';
         $id = $payload['id'] ?? '';
+
+        // The portal's canonical, per-delivery identifier is carried in the
+        // `X-Genvoris-Delivery` header (the same value is replayed on retries).
+        // Prefer it for idempotency; fall back to a body `id` if present.
+        $deliveryId = $request->header('X-Genvoris-Delivery') ?: $id;
+
+        // Idempotency: the portal may retry delivery of the same event. Each
+        // delivery carries a stable id. Atomically claim it in the cache;
+        // if it was already claimed we acknowledge (200) without re-dispatching
+        // so listeners never run twice. TTL comfortably exceeds the portal's
+        // retry window. Deliveries without an id fall through (cannot dedup).
+        if ($deliveryId !== '') {
+            $claimed = Cache::add('genvoris:webhook:' . $deliveryId, true, now()->addDay());
+            if (! $claimed) {
+                return response()->json(['received' => true, 'duplicate' => true]);
+            }
+        }
 
         // Fire the generic event first (allows catch-all listeners)
         Event::dispatch(new GenvorisWebhookReceived($type, $id, $payload));
