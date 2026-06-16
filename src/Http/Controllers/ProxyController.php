@@ -6,9 +6,9 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Forwards widget-layer requests to api.genvoris.org, injecting the
@@ -51,7 +51,7 @@ class ProxyController extends Controller
 
         // Allowlist check
         $allowedPaths = config('genvoris.proxy.allowed_paths', []);
-        if (!in_array($path, $allowedPaths, true)) {
+        if (! in_array($path, $allowedPaths, true)) {
             return response()->json(['error' => 'Path not allowed.'], 400);
         }
 
@@ -96,7 +96,7 @@ class ProxyController extends Controller
         $method = strtoupper($request->method());
 
         // Only accept standard request methods
-        if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
+        if (! in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
             return response()->json(['error' => 'Method not allowed.'], 405);
         }
 

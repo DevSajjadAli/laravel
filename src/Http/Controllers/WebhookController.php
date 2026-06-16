@@ -55,7 +55,7 @@ class WebhookController extends Controller
         // retry window. Deliveries without an id fall through (cannot dedup).
         if ($deliveryId !== '') {
             $claimed = Cache::add('genvoris:webhook:'.$deliveryId, true, now()->addDay());
-            if (!$claimed) {
+            if (! $claimed) {
                 return response()->json(['received' => true, 'duplicate' => true]);
             }
         }
