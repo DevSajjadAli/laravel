@@ -82,7 +82,8 @@ class ProxyController extends Controller
                     $sourceHost = explode(':', $sourceHost)[0];
                     $appHost = explode(':', $appHost)[0];
 
-                    if ($sourceHost !== $appHost) {
+                    // RFC 3986 §3.2.2: hostnames are case-insensitive
+                    if (strcasecmp($sourceHost, $appHost) !== 0) {
                         return response()->json(['error' => 'Origin not allowed.'], 403);
                     }
                 }
@@ -93,6 +94,11 @@ class ProxyController extends Controller
         $apiKey = config('genvoris.api_key', '');
         $timeout = config('genvoris.timeout', 30);
         $method = strtoupper($request->method());
+
+        // Only accept standard request methods
+        if (! in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
+            return response()->json(['error' => 'Method not allowed.'], 405);
+        }
 
         // Forward query string parameters
         $queryString = $request->getQueryString();

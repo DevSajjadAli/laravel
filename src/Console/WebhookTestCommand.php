@@ -55,9 +55,8 @@ class WebhookTestCommand extends Command
 
         try {
             $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
                 'X-Genvoris-Signature' => $signature,
-            ])->withBody($payload, 'application/json')->post($webhookUrl);
+            ])->withBody($payload, 'application/json')->send('POST', $webhookUrl);
         } catch (\Throwable $e) {
             $this->error('HTTP error: '.$e->getMessage());
 

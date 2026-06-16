@@ -28,7 +28,9 @@ class SessionResource
             $cacheTtl = config('genvoris.cache.ttl', 840); // seconds
             $store = config('genvoris.cache.store');
 
-            return Cache::store($store)->remember(
+            $instance = $store !== null ? Cache::store($store) : Cache::getFacadeRoot();
+
+            return $instance->remember(
                 $cacheKey,
                 $cacheTtl,
                 fn () => $this->callMint($customerId, $expiresIn),

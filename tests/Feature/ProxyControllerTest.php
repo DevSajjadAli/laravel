@@ -45,4 +45,25 @@ class ProxyControllerTest extends TestCase
 
         $response->assertStatus(400);
     }
+
+    public function test_invalid_http_method_returns_405(): void
+    {
+        $response = $this->call(
+            'TRACE',
+            config('genvoris.proxy.path', 'genvoris-proxy').'/api/analyze',
+        );
+
+        $response->assertStatus(405);
+    }
+
+    public function test_upstream_returns_502_on_connection_failure(): void
+    {
+        // No HTTP fake — the upstream won't be reachable with the real URL
+        Http::fake(['https://api.genvoris.org/*' => Http::response(null, 502)]);
+
+        $response = $this->postJson(config('genvoris.proxy.path', 'genvoris-proxy').'/api/analyze', []);
+
+        // Should return our proxy 502, not the upstream 502 directly
+        $response->assertStatus(502);
+    }
 }

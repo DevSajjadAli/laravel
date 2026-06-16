@@ -80,7 +80,14 @@ class CustomerResource
 
     public function cancel(string $customerId): Customer
     {
-        return Customer::fromArray($this->client->delete("customers/{$customerId}") + ['id' => $customerId]);
+        $result = $this->client->delete("customers/{$customerId}");
+
+        if (empty($result)) {
+            // 204 No Content — build a minimal cancelled Customer from the known ID
+            return Customer::fromArray(['id' => $customerId, 'status' => 'cancelled']);
+        }
+
+        return Customer::fromArray($result);
     }
 
     public function usage(string $customerId): CustomerUsage
