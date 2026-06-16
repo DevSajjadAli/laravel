@@ -51,14 +51,14 @@ class ProxyController extends Controller
 
         // Allowlist check
         $allowedPaths = config('genvoris.proxy.allowed_paths', []);
-        if (! in_array($path, $allowedPaths, true)) {
+        if (!in_array($path, $allowedPaths, true)) {
             return response()->json(['error' => 'Path not allowed.'], 400);
         }
 
         // Rate limit check (per IP per path)
         $rateLimitPerMinute = config('genvoris.proxy.rate_limit', self::DEFAULT_RATE_LIMIT);
         $ip = $request->ip() ?? '0.0.0.0';
-        $bucketKey = 'genvoris_proxy_' . md5($ip . '|' . $path);
+        $bucketKey = 'genvoris_proxy_'.md5($ip.'|'.$path);
         $hitCount = (int) Cache::get($bucketKey, 0);
         if ($hitCount >= $rateLimitPerMinute) {
             return response()->json(['error' => 'Too many requests.'], 429);
@@ -96,14 +96,14 @@ class ProxyController extends Controller
         $method = strtoupper($request->method());
 
         // Only accept standard request methods
-        if (! in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
+        if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
             return response()->json(['error' => 'Method not allowed.'], 405);
         }
 
         // Forward query string parameters
         $queryString = $request->getQueryString();
         if ($queryString) {
-            $upstreamUrl .= '?' . $queryString;
+            $upstreamUrl .= '?'.$queryString;
         }
 
         try {

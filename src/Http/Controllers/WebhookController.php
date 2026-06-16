@@ -54,8 +54,8 @@ class WebhookController extends Controller
         // so listeners never run twice. TTL comfortably exceeds the portal's
         // retry window. Deliveries without an id fall through (cannot dedup).
         if ($deliveryId !== '') {
-            $claimed = Cache::add('genvoris:webhook:' . $deliveryId, true, now()->addDay());
-            if (! $claimed) {
+            $claimed = Cache::add('genvoris:webhook:'.$deliveryId, true, now()->addDay());
+            if (!$claimed) {
                 return response()->json(['received' => true, 'duplicate' => true]);
             }
         }
