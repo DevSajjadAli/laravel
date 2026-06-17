@@ -4,6 +4,7 @@
   Usage: @include('genvoris::components.try-on-button', ['productId' => $product->id])
 --}}
 <button
+    type="button"
     class="{{ $class ?? 'genvoris-try-on-btn' }}"
     data-genvoris-product="{{ $productId ?? '' }}"
 >{{ $label ?? 'Try On' }}</button>
