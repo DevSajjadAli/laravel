@@ -156,6 +156,7 @@ class GenvorisBladeDirectives
             }
             if ($value === true) {
                 $html .= ' '.htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
                 continue;
             }
             $html .= ' '.htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
