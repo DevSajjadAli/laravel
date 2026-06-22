@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\Route;
 | Registered automatically by GenvorisServiceProvider when
 | config('genvoris.proxy.auto_register') is true.
 |
-| Default URL: POST /genvoris-proxy/{path}
+| Default URL: /genvoris-proxy/{path}
 |
 | The wildcard {path} is validated against the allowed_paths allowlist
 | inside ProxyController — requests to unlisted paths receive 400.
 */
 
-Route::post('{path}', [ProxyController::class, 'handle'])
+Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], '{path}', [ProxyController::class, 'handle'])
     ->where('path', '.*')
     ->name('genvoris.proxy');

@@ -9,10 +9,16 @@ class BladeDirectivesTest extends TestCase
 {
     public function test_render_scripts_outputs_widget_script_tag(): void
     {
-        $html = GenvorisBladeDirectives::renderScripts();
+        $html = GenvorisBladeDirectives::renderScripts(['token' => 'jwt_token', 'noFab' => true]);
 
         $this->assertStringContainsString('<script', $html);
-        $this->assertStringContainsString('api.genvoris.org/widget.js', $html);
+        $this->assertStringContainsString('api.genvoris.org/widget.js?no_fab=1', $html);
+        $this->assertStringContainsString('data-api-url', $html);
+        $this->assertStringContainsString('data-events-url', $html);
+        $this->assertStringContainsString('data-platform="laravel"', $html);
+        $this->assertStringContainsString('data-token="jwt_token"', $html);
+        $this->assertStringContainsString('data-customer-token="jwt_token"', $html);
+        $this->assertStringContainsString('data-no-fab="true"', $html);
         $this->assertStringContainsString('defer', $html);
     }
 
@@ -47,6 +53,7 @@ class BladeDirectivesTest extends TestCase
 
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('&lt;script&gt;', $html);
+        $this->assertStringContainsString('data-genvoris-trigger', $html);
     }
 
     public function test_widget_url_is_correct_host(): void

@@ -18,7 +18,7 @@ return [
     | Override for staging / self-hosted deployments.
     | Test environment: https://test.genvoris.org/api/v1
     */
-    'api_base_url' => env('GENVORIS_API_URL', 'https://genvoris.org/api/v1'),
+    'api_base_url' => env('GENVORIS_API_URL', env('GENVORIS_API_BASE_URL', 'https://genvoris.org/api/v1')),
 
     /*
     |--------------------------------------------------------------------------
@@ -54,7 +54,7 @@ return [
     'webhook' => [
         'secret' => env('GENVORIS_WEBHOOK_SECRET', ''),
         'auto_register' => true,
-        'path' => 'webhooks/genvoris',
+        'path' => env('GENVORIS_WEBHOOK_PATH', 'webhooks/genvoris'),
         'middleware' => [],
         'listeners' => [],
     ],
@@ -73,14 +73,20 @@ return [
     */
     'proxy' => [
         'auto_register' => true,
-        'path' => 'genvoris-proxy',
+        'path' => env('GENVORIS_PROXY_PATH', 'genvoris-proxy'),
+        'upstream' => env(
+            'GENVORIS_PROXY_UPSTREAM',
+            env('GENVORIS_TRYON_UPSTREAM', env('TRYON_BACKEND_URL', 'https://api.genvoris.org'))
+        ),
         'middleware' => ['throttle:60,1'],
         'allowed_paths' => [
-            'api/analyze', // 60 req/min upstream rate limit
-            'api/tryon',   // 10 req/min upstream rate limit
-            'api/config',  // 120 req/min upstream rate limit
-            'api/status',  // 120 req/min upstream rate limit
+            'api/analyze',    // 60 req/min upstream rate limit
+            'api/tryon',      // 10 req/min upstream rate limit
+            'api/config',     // 120 req/min upstream rate limit
+            'api/status',     // 120 req/min upstream rate limit
+            'api/v1/events',  // widget analytics; API key injected server-side
         ],
+        'events_path' => 'api/v1/events',
         'enforce_origin' => true,
     ],
 

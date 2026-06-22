@@ -5,6 +5,7 @@ namespace Genvoris\Laravel\Tests\Feature;
 use Genvoris\Laravel\Tests\TestCase;
 use Genvoris\Laravel\Webhooks\Events\CustomerCreated;
 use Genvoris\Laravel\Webhooks\Events\GenvorisWebhookReceived;
+use Genvoris\Laravel\Webhooks\Events\TryOnCompleted;
 use Illuminate\Support\Facades\Event;
 
 class WebhookControllerTest extends TestCase
@@ -50,6 +51,21 @@ class WebhookControllerTest extends TestCase
 
         Event::assertDispatched(GenvorisWebhookReceived::class);
         Event::assertDispatched(CustomerCreated::class);
+    }
+
+    public function test_new_tryon_event_dispatches_typed_event(): void
+    {
+        Event::fake();
+
+        $secret = config('genvoris.webhook.secret');
+        $payload = json_encode(['type' => 'tryon.completed', 'id' => 'evt_1', 'data' => []]);
+        $header = $this->signedHeader($payload, $secret);
+
+        $this->withHeaders(['X-Genvoris-Signature' => $header])
+            ->postJson(config('genvoris.webhook.path', 'webhooks/genvoris'), json_decode($payload, true));
+
+        Event::assertDispatched(GenvorisWebhookReceived::class);
+        Event::assertDispatched(TryOnCompleted::class);
     }
 
     public function test_unknown_event_type_only_dispatches_generic_event(): void

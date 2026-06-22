@@ -3,7 +3,6 @@
 namespace Genvoris\Laravel\Http\Controllers;
 
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
@@ -25,11 +24,6 @@ use Illuminate\Support\Facades\Log;
 class ProxyController extends Controller
 {
     /**
-     * The upstream API host. All allowed paths are relative to this.
-     */
-    private const UPSTREAM_HOST = 'https://api.genvoris.org';
-
-    /**
      * Default rate limit: requests per minute per (IP, path) bucket.
      */
     private const DEFAULT_RATE_LIMIT = 60;
@@ -39,7 +33,7 @@ class ProxyController extends Controller
      */
     private const RATE_LIMIT_WINDOW = 60;
 
-    public function handle(Request $request, string $path): JsonResponse
+    public function handle(Request $request, string $path)
     {
         // Normalize and sanitize path
         $path = ltrim($path, '/');
@@ -90,7 +84,12 @@ class ProxyController extends Controller
             }
         }
 
-        $upstreamUrl = self::UPSTREAM_HOST.'/'.$path;
+        $upstreamHost = rtrim((string) config('genvoris.proxy.upstream', 'https://api.genvoris.org'), '/');
+        if (! preg_match('#^https?://#i', $upstreamHost)) {
+            return response()->json(['error' => 'Invalid proxy upstream.'], 500);
+        }
+
+        $upstreamUrl = $upstreamHost.'/'.$path;
         $apiKey = config('genvoris.api_key', '');
         $timeout = config('genvoris.timeout', 30);
         $method = strtoupper($request->method());
@@ -144,7 +143,6 @@ class ProxyController extends Controller
         }
 
         $status = $upstreamResponse->status();
-        $responseBody = $upstreamResponse->json();
 
         if ($status >= 500) {
             Log::warning('Genvoris proxy upstream error', [
@@ -156,6 +154,9 @@ class ProxyController extends Controller
             return response()->json(['error' => 'Upstream error.'], 502);
         }
 
-        return response()->json($responseBody, $status);
+        $contentType = $upstreamResponse->header('Content-Type', 'application/json');
+
+        return response($upstreamResponse->body(), $status)
+            ->header('Content-Type', $contentType);
     }
 }

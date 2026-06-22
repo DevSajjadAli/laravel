@@ -54,17 +54,19 @@ The published `config/genvoris.php` file exposes all options. The most important
 | Key | Env var | Default | Description |
 |---|---|---|---|
 | `api_key` | `GENVORIS_API_KEY` | `""` | Your platform API key |
-| `api_base_url` | `GENVORIS_API_BASE_URL` | `https://genvoris.org/api/v1` | Override for testing |
+| `api_base_url` | `GENVORIS_API_URL` or `GENVORIS_API_BASE_URL` | `https://genvoris.org/api/v1` | Portal API base for server SDK calls |
 | `timeout` | `GENVORIS_TIMEOUT` | `30` | HTTP timeout (seconds) |
 | `retry.times` | — | `3` | Max retries on 429 / 5xx |
 | `webhook.secret` | `GENVORIS_WEBHOOK_SECRET` | `""` | HMAC secret for signatures |
 | `webhook.path` | `GENVORIS_WEBHOOK_PATH` | `webhooks/genvoris` | Route prefix |
 | `webhook.auto_register` | — | `true` | Auto-register webhook route |
 | `proxy.path` | `GENVORIS_PROXY_PATH` | `genvoris-proxy` | Route prefix |
+| `proxy.upstream` | `GENVORIS_PROXY_UPSTREAM`, `GENVORIS_TRYON_UPSTREAM`, or `TRYON_BACKEND_URL` | `https://api.genvoris.org` | Try-on/widget upstream for proxied browser calls |
 | `proxy.auto_register` | — | `true` | Auto-register proxy route |
-| `proxy.allowed_paths` | — | `[api/analyze, ...]` | Forwarding allowlist |
-| `external_id_prefix` | — | `laravel_` | Prefix on external customer IDs |
-| `widget_url` | — | `https://api.genvoris.org/widget.js` | Widget script URL |
+| `proxy.allowed_paths` | — | `[api/analyze, api/tryon, api/config, api/status, api/v1/events]` | Strict forwarding allowlist |
+| `proxy.events_path` | — | `api/v1/events` | Widget analytics path forwarded with server-side API key |
+| `external_id_prefix` | `GENVORIS_EXTERNAL_ID_PREFIX` | `laravel_` | Prefix on external customer IDs |
+| `widget_url` | `GENVORIS_WIDGET_URL` | `https://api.genvoris.org/widget.js` | Widget script URL |
 | `cache.sessions` | — | `true` | Cache minted session tokens |
 | `cache.ttl` | — | `840` | Session cache TTL (seconds) |
 
@@ -157,25 +159,40 @@ php artisan migrate
 ## Blade Directives
 
 ```blade
-{{-- Load the widget script --}}
-@genvorisScripts
+{{-- Render a contextual button. It uses data-genvoris-trigger for the hosted widget. --}}
+@genvorisTryOnButton([
+    'productId' => $product->id,
+    'productTitle' => $product->name,
+    'productImage' => $product->image_url,
+    'productCategory' => $product->category?->name,
+    'price' => $product->price,
+    'currency' => 'USD',
+    'label' => 'Try On',
+])
 
 {{-- Emit window.genvorisConfig (never exposes api_key) --}}
-@genvorisConfig(['productId' => $product->id])
+@genvorisConfig(['productId' => $product->id, 'token' => $session->token])
 
-{{-- Combined shorthand --}}
-@genvorisWidget(['productId' => $product->id])
+{{-- Load the hosted widget with same-origin proxy + events URLs. --}}
+@genvorisScripts(['token' => $session->token, 'noFab' => true])
 
-{{-- Render a try-on button --}}
-@genvorisTryOnButton(['productId' => $product->id, 'label' => 'Try On'])
+{{-- Combined shorthand: config + script with no floating FAB by default. --}}
+@genvorisWidget(['productId' => $product->id, 'token' => $session->token])
 ```
 
 Or use the Blade views directly:
 
 ```blade
-@include('genvoris::widget', ['productId' => $product->id, 'token' => $session->token])
+@include('genvoris::widget', [
+    'productId' => $product->id,
+    'productTitle' => $product->name,
+    'productImage' => $product->image_url,
+    'token' => $session->token,
+])
 @include('genvoris::components.try-on-button', ['productId' => $product->id])
 ```
+
+The rendered script includes `data-api-url`, `data-events-url`, `data-platform="laravel"`, and customer token attributes for the hosted widget. Your `GENVORIS_API_KEY` is never printed into HTML.
 
 ---
 
@@ -223,6 +240,12 @@ Or declare listeners in `config/genvoris.php`:
 
 | Event type | PHP class |
 |---|---|
+| `tryon.completed` | `TryOnCompleted` |
+| `tryon.failed` | `TryOnFailed` |
+| `customer.plan_changed` | `CustomerPlanChanged` |
+| `customer.quota_exhausted` | `CustomerQuotaExhausted` |
+| `credit.low_balance` | `CreditLowBalance` |
+| `credit.balance_added` | `CreditBalanceAdded` |
 | `end_customer.created` | `CustomerCreated` |
 | `end_customer.updated` | `CustomerUpdated` |
 | `end_customer.cancelled` | `CustomerCancelled` |
@@ -251,17 +274,23 @@ $ok = (new WebhookVerifier())->verify(
 
 ## Proxy
 
-The package registers a `POST /genvoris-proxy/{path}` route that injects your API key server-side before forwarding to `api.genvoris.org`. Only paths in the `proxy.allowed_paths` allowlist are forwarded.
+The package registers `/genvoris-proxy/{path}` for `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`. It injects your API key server-side before forwarding to `api.genvoris.org`. Only paths in the `proxy.allowed_paths` allowlist are forwarded, including `api/v1/events` for hosted widget analytics.
 
-In your front-end widget configuration, set:
+The hosted widget should call the same-origin proxy, not the Genvoris upstream directly from the browser:
 
-```js
-window.genvorisConfig = {
-    apiProxyBase: '/genvoris-proxy/',
-};
+```html
+<script
+  src="https://api.genvoris.org/widget.js?no_fab=1"
+  data-api-url="/genvoris-proxy/"
+  data-events-url="/genvoris-proxy/api/v1/events"
+  data-platform="laravel"
+  data-token="{{ $session->token }}"
+  data-no-fab="true"
+  defer
+></script>
 ```
 
-`@genvorisConfig` emits this automatically.
+`@genvorisScripts` and `@genvorisWidget` emit this automatically. The browser receives only the same-origin proxy URL and short-lived customer token; the merchant API key stays in `.env`.
 
 ---
 
@@ -284,6 +313,16 @@ Install dev dependencies and run the suite:
 ```bash
 composer install
 composer test
+```
+
+For a consuming Laravel app, clear cached config/routes after upgrading:
+
+```bash
+php artisan config:clear
+php artisan route:clear
+php artisan config:cache
+php artisan genvoris:test-connection
+php artisan route:list | grep genvoris
 ```
 
 Run code style checks:

@@ -50,6 +50,8 @@ class InstallCommand extends Command
     {
         $keys = [
             'GENVORIS_API_KEY' => '',
+            'GENVORIS_API_URL' => 'https://genvoris.org/api/v1',
+            'GENVORIS_PROXY_UPSTREAM' => 'https://api.genvoris.org',
             'GENVORIS_WEBHOOK_SECRET' => '',
         ];
 

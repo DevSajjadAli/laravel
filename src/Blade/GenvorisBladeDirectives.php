@@ -14,8 +14,10 @@ class GenvorisBladeDirectives
     public static function register(): void
     {
         // @genvorisScripts — emits the widget loader <script> tag
-        Blade::directive('genvorisScripts', function () {
-            return '<?php echo \Genvoris\Laravel\Blade\GenvorisBladeDirectives::renderScripts(); ?>';
+        Blade::directive('genvorisScripts', function (string $expression) {
+            $expr = $expression ?: '[]';
+
+            return "<?php echo \\Genvoris\\Laravel\\Blade\\GenvorisBladeDirectives::renderScripts({$expr}); ?>";
         });
 
         // @genvorisConfig($options = []) — emits window.genvorisConfig inline script
@@ -44,15 +46,31 @@ class GenvorisBladeDirectives
     // Render helpers (called at runtime via the compiled Blade output)
     // ------------------------------------------------------------------
 
-    public static function renderScripts(): string
+    public static function renderScripts(array $options = []): string
     {
-        $widgetUrl = htmlspecialchars(
-            config('genvoris.widget_url', 'https://api.genvoris.org/widget.js'),
-            ENT_QUOTES | ENT_SUBSTITUTE,
-            'UTF-8',
+        $widgetUrl = static::appendQuery(
+            (string) config('genvoris.widget_url', 'https://api.genvoris.org/widget.js'),
+            ['no_fab' => ! empty($options['noFab']) ? '1' : null],
         );
+        $attrs = [
+            'src' => $widgetUrl,
+            'defer' => true,
+            'data-vto-widget' => true,
+            'data-api-url' => static::proxyBase(),
+            'data-events-url' => static::eventsUrl(),
+            'data-platform' => 'laravel',
+        ];
 
-        return "<script src=\"{$widgetUrl}\" defer></script>";
+        $token = $options['token'] ?? $options['customerToken'] ?? null;
+        if (! empty($token)) {
+            $attrs['data-token'] = (string) $token;
+            $attrs['data-customer-token'] = (string) $token;
+        }
+        if (! empty($options['noFab'])) {
+            $attrs['data-no-fab'] = 'true';
+        }
+
+        return '<script'.static::htmlAttributes($attrs).'></script>';
     }
 
     /**
@@ -62,14 +80,10 @@ class GenvorisBladeDirectives
      */
     public static function renderConfig(array $options = []): string
     {
-        $proxyBase = '';
-        if (Route::has('genvoris.proxy')) {
-            // Build the proxy base URL from the named route (strip wildcard segment)
-            $proxyBase = rtrim(url(config('genvoris.proxy.path', 'genvoris-proxy')), '/').'/';
-        }
-
         $cfg = array_merge([
-            'apiProxyBase' => $proxyBase,
+            'apiProxyBase' => static::proxyBase(),
+            'eventsUrl' => static::eventsUrl(),
+            'platform' => 'laravel',
             'widgetEnabled' => true,
         ], $options);
 
@@ -86,16 +100,87 @@ class GenvorisBladeDirectives
 
     public static function renderWidget(array $options = []): string
     {
-        return static::renderConfig($options)."\n".static::renderScripts();
+        return static::renderConfig($options)."\n".static::renderScripts(array_merge($options, ['noFab' => $options['noFab'] ?? true]));
     }
 
     public static function renderTryOnButton(array $options = []): string
     {
-        $productId = $options['productId'] ?? '';
-        $label = htmlspecialchars($options['label'] ?? 'Try On', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $class = htmlspecialchars($options['class'] ?? 'genvoris-try-on-btn', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $productId = htmlspecialchars((string) $productId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $label = htmlspecialchars((string) ($options['label'] ?? 'Try On'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $attrs = [
+            'type' => 'button',
+            'class' => (string) ($options['class'] ?? 'genvoris-try-on-btn'),
+            'data-genvoris-trigger' => true,
+            'data-genvoris-product' => (string) ($options['productId'] ?? ''),
+        ];
 
-        return "<button class=\"{$class}\" data-genvoris-product=\"{$productId}\">{$label}</button>";
+        foreach ([
+            'productTitle' => 'data-genvoris-title',
+            'productImage' => 'data-genvoris-image',
+            'productCategory' => 'data-genvoris-category',
+            'productDescription' => 'data-genvoris-description',
+            'sku' => 'data-genvoris-sku',
+            'price' => 'data-genvoris-price',
+            'currency' => 'data-genvoris-currency',
+        ] as $option => $attribute) {
+            if (isset($options[$option]) && $options[$option] !== '') {
+                $attrs[$attribute] = (string) $options[$option];
+            }
+        }
+
+        return '<button'.static::htmlAttributes($attrs).'>'.$label.'</button>';
+    }
+
+    /** @param array<string, string|null> $params */
+    private static function appendQuery(string $url, array $params): string
+    {
+        $query = [];
+        foreach ($params as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $query[$key] = $value;
+            }
+        }
+        if ($query === []) {
+            return $url;
+        }
+
+        return $url.(str_contains($url, '?') ? '&' : '?').http_build_query($query);
+    }
+
+    /** @param array<string, bool|string> $attrs */
+    private static function htmlAttributes(array $attrs): string
+    {
+        $html = '';
+        foreach ($attrs as $key => $value) {
+            if ($value === false || $value === '') {
+                continue;
+            }
+            if ($value === true) {
+                $html .= ' '.htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                continue;
+            }
+            $html .= ' '.htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                .'="'.htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"';
+        }
+
+        return $html;
+    }
+
+    private static function proxyBase(): string
+    {
+        if (! Route::has('genvoris.proxy')) {
+            return '';
+        }
+
+        return rtrim(url(config('genvoris.proxy.path', 'genvoris-proxy')), '/').'/';
+    }
+
+    private static function eventsUrl(): string
+    {
+        $proxyBase = static::proxyBase();
+        if ($proxyBase === '') {
+            return '';
+        }
+
+        return $proxyBase.ltrim((string) config('genvoris.proxy.events_path', 'api/v1/events'), '/');
     }
 }

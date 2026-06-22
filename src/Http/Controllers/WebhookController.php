@@ -2,9 +2,12 @@
 
 namespace Genvoris\Laravel\Http\Controllers;
 
+use Genvoris\Laravel\Webhooks\Events\CreditBalanceAdded;
+use Genvoris\Laravel\Webhooks\Events\CreditLowBalance;
 use Genvoris\Laravel\Webhooks\Events\CustomerCancelled;
 use Genvoris\Laravel\Webhooks\Events\CustomerCreated;
 use Genvoris\Laravel\Webhooks\Events\CustomerPeriodRolled;
+use Genvoris\Laravel\Webhooks\Events\CustomerPlanChanged;
 use Genvoris\Laravel\Webhooks\Events\CustomerQuotaExhausted;
 use Genvoris\Laravel\Webhooks\Events\CustomerQuotaWarning;
 use Genvoris\Laravel\Webhooks\Events\CustomerUpdated;
@@ -12,6 +15,8 @@ use Genvoris\Laravel\Webhooks\Events\GenvorisWebhookReceived;
 use Genvoris\Laravel\Webhooks\Events\PlanCreated;
 use Genvoris\Laravel\Webhooks\Events\PlanDisabled;
 use Genvoris\Laravel\Webhooks\Events\PlanUpdated;
+use Genvoris\Laravel\Webhooks\Events\TryOnCompleted;
+use Genvoris\Laravel\Webhooks\Events\TryOnFailed;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -22,6 +27,12 @@ class WebhookController extends Controller
 {
     /** Maps portal event types → typed event classes. */
     private const EVENT_MAP = [
+        'tryon.completed' => TryOnCompleted::class,
+        'tryon.failed' => TryOnFailed::class,
+        'customer.plan_changed' => CustomerPlanChanged::class,
+        'customer.quota_exhausted' => CustomerQuotaExhausted::class,
+        'credit.low_balance' => CreditLowBalance::class,
+        'credit.balance_added' => CreditBalanceAdded::class,
         'end_customer.created' => CustomerCreated::class,
         'end_customer.updated' => CustomerUpdated::class,
         'end_customer.cancelled' => CustomerCancelled::class,

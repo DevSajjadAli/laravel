@@ -20,6 +20,31 @@ class ProxyControllerTest extends TestCase
         });
     }
 
+    public function test_proxy_forwards_widget_events_path(): void
+    {
+        Http::fake(['https://api.genvoris.org/*' => Http::response(['accepted' => 1], 202)]);
+
+        $response = $this->postJson(config('genvoris.proxy.path', 'genvoris-proxy').'/api/v1/events', [
+            'sessionId' => 'session_12345678',
+            'eventType' => 'WIDGET_OPENED',
+        ]);
+
+        $response->assertStatus(202);
+        Http::assertSent(function (Request $req) {
+            return str_contains((string) $req->url(), 'api.genvoris.org/api/v1/events')
+                && $req->header('X-API-Key')[0] === config('genvoris.api_key');
+        });
+    }
+
+    public function test_proxy_accepts_get_requests_at_route_layer(): void
+    {
+        Http::fake(['https://api.genvoris.org/*' => Http::response(['status' => 'ok'])]);
+
+        $response = $this->getJson(config('genvoris.proxy.path', 'genvoris-proxy').'/api/status');
+
+        $response->assertStatus(200);
+    }
+
     public function test_proxy_api_key_not_in_response(): void
     {
         Http::fake(['https://api.genvoris.org/*' => Http::response(['result' => 'ok'])]);
