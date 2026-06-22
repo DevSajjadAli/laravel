@@ -66,7 +66,7 @@ class ProxyControllerTest extends TestCase
 
     public function test_path_traversal_returns_400(): void
     {
-        $response = $this->postJson(config('genvoris.proxy.path', 'genvoris-proxy').'/../etc/passwd', []);
+        $response = $this->postJson(config('genvoris.proxy.path', 'genvoris-proxy').'/api/../etc/passwd', []);
 
         $response->assertStatus(400);
     }

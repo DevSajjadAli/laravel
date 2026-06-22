@@ -116,23 +116,20 @@ class ProxyController extends Controller
                     'allow_redirects' => false,
                 ]);
 
-            // Pass through the original Content-Type when present
-            $contentType = $request->header('Content-Type', '');
-            if ($contentType !== '') {
-                $client = $client->withHeader('Content-Type', $contentType);
-            }
-
             // Determine request body based on method
+            $contentType = $request->header('Content-Type', 'application/json');
             $body = in_array($method, ['POST', 'PUT', 'PATCH'], true)
                 ? $request->getContent()
                 : null;
 
-            // Forward the request preserving the original HTTP method
-            $upstreamResponse = $client->withBody(
-                $body ?? '',
-                $contentType ?: 'application/json'
-            )->send($method, $upstreamUrl);
+            // Forward the request preserving the original HTTP method. Only attach
+            // a body for methods that normally carry one; this avoids relying on
+            // non-portable GET/OPTIONS bodies across Laravel HTTP client versions.
+            if ($body !== null) {
+                $client = $client->withBody($body, $contentType ?: 'application/json');
+            }
 
+            $upstreamResponse = $client->send($method, $upstreamUrl);
         } catch (ConnectionException $e) {
             Log::error('Genvoris proxy upstream connection failed', [
                 'path' => $path,
