@@ -29,7 +29,8 @@ jobs:
         id: changelog
         run: |
           TAG="${GITHUB_REF_NAME}"
-          NOTES=$(awk "/^## \[${TAG}\]/{flag=1;next}/^## \[/{if(flag)exit}flag" CHANGELOG.md)
+          VERSION="${TAG#v}"
+          NOTES=$(awk "/^## \[${VERSION}\]/{flag=1;next}/^## \[/{if(flag)exit}flag" CHANGELOG.md)
           echo "notes<<EOF" >> "$GITHUB_OUTPUT"
           echo "$NOTES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
